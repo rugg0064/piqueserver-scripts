@@ -9,27 +9,28 @@ startingGrenades = grenadeLimitConfig.get()
 dudLimit = grenadeDudLimitConfig.get()
 def apply_script(protocol, connection, config):
     class scriptConnection(connection):
-        grenadeCount = 0
+        liveGrenades = 0
+        dudGrenades = 0
         def on_spawn(self, position):
-            self.grenadeCount = grenadeLimitConfig.get()
+            self.liveGrenades = grenadeLimitConfig.get()
+            self.dudGrenades = grenadeDudLimitConfig.get()
             connection.on_spawn(self, position)
         
         def on_grenade_thrown(self, grenade):
-            self.grenadeCount -= 1
             self.refillAndSetHPAmmo()
-            if(self.grenadeCount>=0):
-                connection.send_chat(self, "%d grenade%s left" %(self.grenadeCount, ("s","")[self.grenadeCount==1]), global_message=False)
-                connection.send_chat_notice(self, "%d grenade%s left" %(self.grenadeCount, ("s","")[self.grenadeCount==1]))
-            if(self.grenadeCount<0):
+            if(self.liveGrenades>0):
+                self.liveGrenades -= 1
+                connection.send_chat(self, "%d grenade%s left" %(self.liveGrenades, ("s","")[self.liveGrenades==1]), global_message=False)
+                connection.send_chat_notice(self, "%d grenade%s left" %(self.liveGrenades, ("s","")[self.liveGrenades==1]))
+            elif(self.dudGrenades>0):
                 grenade.fuse = 500000
-                if(self.grenadeCount>(-1*dudLimit)):
-                    connection.send_chat(self, "You have %d dud%s, stop throwing more!" %((self.grenadeCount+dudLimit), ("s","")[self.grenadeCount+dudLimit==1]), global_message=False)
-                    connection.send_chat_notice(self, "%d dud%s left" %((self.grenadeCount+dudLimit), ("s","")[self.grenadeCount+dudLimit==1]))
-                if(self.grenadeCount==(-1*dudLimit)):
-                    connection.send_chat(self, "You have run out of dud grenades, one more will make you explode!", global_message=False)
-                    connection.send_chat_error(self, "NO MORE DUDS")
-                if(self.grenadeCount<(-1*dudLimit)):
-                    connection.kill(self)
+                self.dudGrenades -= 1
+                connection.send_chat(self, "You have %d dud%s, stop throwing more!" %((self.dudGrenades+dudLimit), ("s","")[self.dudGrenades+dudLimit==1]), global_message=False)
+                connection.send_chat_notice(self, "%d dud%s left" %((self.dudGrenades), ("s","")[self.dudGrenades==1]))
+            else:
+                grenade.fuse = 500000
+                connection.send_chat_error(self, "You have run out of dud grenades and exploded")
+                connection.kill(self)
             connection.on_grenade_thrown(self, grenade)
             
         def refillAndSetHPAmmo(self):
@@ -51,7 +52,7 @@ def apply_script(protocol, connection, config):
             connection.on_line_build(self,points)
 
         def on_refill(self):
-            self.grenadecount = self.startinggrenades
+            self.liveGrenades = self.startingGrenades
             connection.send_chat(self, "Grenades refilled", global_message=False)
             connection.on_refill(self)
     return protocol, scriptConnection

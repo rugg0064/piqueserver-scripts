@@ -1,7 +1,10 @@
 from piqueserver.commands import command, player_only, target_player
 
 #      Kills, Loop, amount rewarded, connection stat rewarded, reward message
-rewards = [[1, 1, 1, "nukesAvailable", "You have been given a nuke"]]
+rewards = [[5, 5, 1, "nukesAvailable", "You have been given a nuke"],
+[2, 1, 1, "liveGrenades", ""],
+[2, 1, 1, "superGrenades", "You have been given a super grenade"]
+            ]
 
 @command('killstreak', 'streak')
 @target_player
