@@ -30,7 +30,7 @@ duds=3
 killstreak.py
 A system to give players rewards such as a nuke 
 No config.toml options, but customization is done within the python file right now.
-To configure, line 4 contains 
+To configure, line #4 of killstreak.py contains 
 
 rewards = [[14, 7, 1, "nukesAvailable", "You have been given a nuke"]]
 
@@ -40,3 +40,14 @@ the structure of this is
 Kills, loop, amount rewarded, connection stat rewarded, reward message
 
 To add more streaks, expand the array and fill it with the correct data
+
+
+regen.py
+Functions exactly like the old regen.py, which added a COD style out of combat healing except cleaner code and more predictable
+Configure options include the delay to start regenerating, and once regen is activated the speed and amount of the heal
+For an almost immediate very fast heal:
+
+[regen]
+regenDelay=5.0
+healSpeed=0.01
+healAmount=1.0
