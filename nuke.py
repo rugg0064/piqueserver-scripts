@@ -167,16 +167,12 @@ def nuke(connection, *args):
     for player in players:
         ploc = player.get_location()
         if(sqrt((ploc[0]-centerPosition[0])**2 + (ploc[1]-centerPosition[1])**2)<=radius and (centerPosition[2]-upHeight+4) <= (ploc[2]) <= (centerPosition[2]+downHeight+2)):
-            player.kill(connection)
+            player.kill(kill_type=4)
             connection.personalSuccessNukeTime = time()
             if(connection.team.id==0):
                 connection.protocol.team1SuccessNukeTime = time()
             else:
                 connection.protocol.team2SuccessNukeTime = time()
-            try:
-                connection.killStreak -= 1
-            except Exception as ex:
-                print(ex)
     
     for i in range(0,grenadeAmount):
         randomDistance = maximumRadius - ((maximumRadius-radius) * exp(-fallOff*i))
@@ -185,7 +181,7 @@ def nuke(connection, *args):
         grenadeX = centerPosition[0] + (randomDistance * cos(randomDegrees))
         grenadeY = centerPosition[1] + (randomDistance * sin(randomDegrees))
         grenade = connection.protocol.world.create_object(Grenade, fuse, Vertex3(grenadeX, grenadeY, min(62,mapData.get_z(grenadeX, grenadeY)+ceil((random()-0.25)*1.5))), None, Vertex3(0,0,2), connection.grenade_exploded)
-        grenade.name = "nukeGrenade"
+        grenade.name = "noStreakNade"
     if(connection.team.id==0):
         connection.protocol.team1NukeTime = time()
     else:
@@ -200,20 +196,14 @@ def apply_script(protocol, connection, config):
         personalNukeTime = 0
         nukesAvailable = 0
         def on_kill(self, killer, kill_type, grenade):
-            print("registered kill")
+            #print("registered kill")
             if(grenade is not None):
-                print("nadename: ", grenade)
                 if(grenade.name == "nukeGrenade"):
                     killer.personalSuccessNukeTime = time()
                     if(killer.team.id==0):
                         killer.protocol.team1SuccessNukeTime = time()
                     else:
                         killer.protocol.team2SuccessNukeTime = time()
-                    print(killer.protocol.team1SuccessNukeTime, killer.protocol.team2SuccessNukeTime)
-                    try:
-                        killer.killStreak -= 1
-                    except Exception as ex:
-                        print(ex)
             connection.on_kill(self, killer, kill_type, grenade);
     class nukeProtocol(protocol):
         team1SuccessNukeTime = 0
