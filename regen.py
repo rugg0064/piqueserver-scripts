@@ -14,8 +14,8 @@ def apply_script(protocol, connection, config):
     class regenConnection(connection):
         regenCallID = None
         def regen(self):
-            connection.set_hp(self, self.hp + healAmount, kill_type=FALL_KILL)
-            if(self.hp<100):
+            if(self.hp is not None):
+                connection.set_hp(self, self.hp + healAmount, kill_type=FALL_KILL)
                 self.regenCallID = reactor.callLater(healSpeed, self.regen)
         def stopRegen(self):
             try:
