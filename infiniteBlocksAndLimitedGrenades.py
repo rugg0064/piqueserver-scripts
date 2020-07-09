@@ -12,8 +12,8 @@ def apply_script(protocol, connection, config):
         liveGrenades = 0
         dudGrenades = 0
         def on_spawn(self, position):
-            self.liveGrenades = grenadeLimitConfig.get()
-            self.dudGrenades = grenadeDudLimitConfig.get()
+            self.liveGrenades = startingGrenades
+            self.dudGrenades = dudLimit
             connection.on_spawn(self, position)
         
         def on_grenade_thrown(self, grenade):
@@ -52,7 +52,8 @@ def apply_script(protocol, connection, config):
             connection.on_line_build(self,points)
 
         def on_refill(self):
-            self.liveGrenades = self.startingGrenades
-            connection.send_chat(self, "Grenades refilled", global_message=False)
+            self.liveGrenades = startingGrenades
+            self.dudGrenades = dudLimit
+            connection.send_chat_notice(self, "Grenades refilled")
             connection.on_refill(self)
     return protocol, scriptConnection
