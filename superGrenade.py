@@ -35,7 +35,6 @@ def apply_script(protocol, connection, config):
     class superGrenadeConnection(connection):
         superGrenades = 0
         def on_spawn(self, position):
-            print(connection.name)
             self.superGrenades = 0
             connection.on_spawn(self, position)
         def on_grenade_thrown(self, grenade):
