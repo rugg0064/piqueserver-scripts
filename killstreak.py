@@ -24,7 +24,7 @@ def apply_script(protocol, connection, config):
             connection.on_spawn(self, position)
         def on_kill(self, killer, kill_type, grenade):
             if(grenade is not None):
-                if(grenade.name == "noStreakNade"):
+                if("NoStreak" in grenade.name):
                     connection.on_kill(self, killer, kill_type, grenade);
                     return
             if(kill_type is not None):
