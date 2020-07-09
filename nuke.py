@@ -16,30 +16,31 @@ from pyspades.constants import GRENADE_DESTROY
 nukeErrorMessage = "Invalid Input, provide coordinate (eg: C3) and region (eg: NE for northeast)"
 
 sectionConfig = config.section('nuke')
-radius = sectionConfig.option('explosionRadius', default = 10).get()
-maximumRadius = sectionConfig.option('maximumExplosionRadius', default = 50).get()
-flatness = sectionConfig.option('flatness', default = 0.0083).get()
-shiftness = sectionConfig.option('shiftness', default = 131).get()
-#f\left(x\right)\ =\ \left(\left(800-100\right)\right)/(1+1e^{-k\left(x-\left(S\right)\right)})
-propogationTime = sectionConfig.option('propogationTime', default = 2.5).get()
-upHeight = sectionConfig.option('upHeight', default = 8).get()
-downHeight = sectionConfig.option('downHeight', default = 2).get()
-grenadeAmount = sectionConfig.option('grenadeAmount', default = 400).get()
-teamSuccessCD = sectionConfig.option('teamSuccessCooldown', default = 30).get()
-playerSuccessCD = sectionConfig.option('playerSuccessCooldown', default = 30).get()
-teamCD = sectionConfig.option('teamCooldown', default = 5).get()
-playerCD = sectionConfig.option('playerCooldown', default = 5).get()
+radiusConfig = sectionConfig.option('explosionRadius', default = 10)
+maximumRadiusConfig = sectionConfig.option('maximumExplosionRadius', default = 50)
+flatnessConfig = sectionConfig.option('flatness', default = 0.0083)
+shiftnessConfig = sectionConfig.option('shiftness', default = 131)
+#f\left(x\right)\ =\ \left(\left(M-N\right)\right)/(1+1e^{-k\left(x-\left(S\right)\right)})
+#N = minimum; M = maximum; S = shiftness (slider 0-*200*); F = flatness (slider 0-0.25)
+#X axis = grenade, Y axis = distance from radius
+propogationTimeConfig = sectionConfig.option('propogationTime', default = 2.5)
+upHeightConfig = sectionConfig.option('upHeight', default = 8)
+downHeightConfig = sectionConfig.option('downHeight', default = 2)
+grenadeAmountConfig = sectionConfig.option('grenadeAmount', default = 400)
+teamSuccessCDConfig = sectionConfig.option('teamSuccessCooldown', default = 30)
+playerSuccessCDConfig = sectionConfig.option('playerSuccessCooldown', default = 30)
+teamCDConfig = sectionConfig.option('teamCooldown', default = 5)
+playerCDConfig = sectionConfig.option('playerCooldown', default = 5)
 
-nukeTK = sectionConfig.option('friendlyFire', default = False).get()
+nukeTKConfig = sectionConfig.option('friendlyFire', default = False)
 
-nukeLaunchTime = sectionConfig.option('launchTime', default = 30).get()
-warningGlobalInitial = sectionConfig.option('warningGlobalInitial', default = True).get()
-warningOnInterval = sectionConfig.option('warningOnInterval', default = True).get()
-warningInterval = sectionConfig.option('interval', default = 10).get()
-warningCountdown = sectionConfig.option('warningOnCountdown', default = True).get()
-warningCountdownStart = sectionConfig.option('warningCountdownStart', default = 10).get()
+nukeLaunchTimeConfig = sectionConfig.option('launchTime', default = 30)
+warningGlobalInitialConfig = sectionConfig.option('warningGlobalInitial', default = True)
+warningOnIntervalConfig = sectionConfig.option('warningOnInterval', default = True)
+warningIntervalConfig = sectionConfig.option('interval', default = 10)
+warningCountdownConfig = sectionConfig.option('warningOnCountdown', default = True)
+warningCountdownStartConfig = sectionConfig.option('warningCountdownStart', default = 10)
 
-friendly_fire = config.option('friendly_fire', default = True).get()
 
 @command('nukes')
 @target_player
@@ -61,19 +62,7 @@ def givenuke(connection, player):
         print("%s has been given a nuke, but there was a %s error" %(player.name, type(ex)))
     player.send_chat_notice("%s has given you a nuke." %connection.name)
 
-"""
-@command('test')
-def testCommand(connection, *args):
-    print(connection)
-    print(connection.team)
-    print(connection.protocol.map)
-    reactor.callLater(5, testCommand2, connection)
 
-def testCommand2(connection):
-    print(connection)
-    print(connection.team)
-    print(connection.protocol.map)
-"""    
 @command('nuke', 'n')
 @player_only
 def nuke(connection, *args):
@@ -114,7 +103,7 @@ def nuke(connection, *args):
                                         verticalDirection = ["north", "south"]["ns".find(args[1][0].lower())]
                                         horizontalDirection = ["east", "west"]["ew".find(args[1][1].lower())]
                                         connection.send_chat_notice("Nuking %s%s of %s%s" %(verticalDirection, horizontalDirection, chr(horizontal + 97).upper(), str(vertical+1)))
-                                        if(warningGlobalInitial):
+                                        if(warningGlobalInitialConfig.get()):
                                             connection.protocol.broadcast_chat("NUKE INBOUND: %s%s of %s%s" %(verticalDirection, horizontalDirection, chr(horizontal + 97).upper(), str(vertical+1)), global_message = True)
                                     else:
                                         #error
@@ -123,9 +112,8 @@ def nuke(connection, *args):
                                 else:
                                     direction = ["north", "east", "south", "west", "center"]["neswc".find(args[1][0].lower())]
                                     connection.send_chat_notice("Nuking %s of %s%s" %(direction, chr(horizontal + 97).upper(), str(vertical+1)))
-                                    if(warningGlobalInitial):
+                                    if(warningGlobalInitialConfig.get()):
                                         connection.protocol.broadcast_chat("NUKE INBOUND: %s of %s%s" %(direction, chr(horizontal + 97).upper(), str(vertical+1)), global_message = True)
-
                             else:
                                 #error
                                 connection.send_chat_error(nukeErrorMessage)
@@ -136,7 +124,7 @@ def nuke(connection, *args):
                             return
                     else:
                         connection.send_chat_notice("Nuking coordinate %s%s" %(chr(horizontal + 97).upper(), str(vertical+1)))
-                        if(warningGlobalInitial):
+                        if(warningGlobalInitialConfig.get()):
                             connection.protocol.broadcast_chat("NUKE INBOUND: %s%s" %(chr(horizontal + 97).upper(), str(vertical+1)), global_message = True)
                 else:
                     #error
@@ -154,11 +142,11 @@ def nuke(connection, *args):
         connection.send_chat_error("You do not have a nuke available")
         return
     
-    personalSuccessTimeLeft = playerSuccessCD-(time()-connection.personalSuccessNukeTime)
-    teamSuccessTimeLeft = teamSuccessCD-(time()-(connection.protocol.team1SuccessNukeTime if connection.team.id==0 else connection.protocol.team2SuccessNukeTime))
+    personalSuccessTimeLeft = playerSuccessCDConfig.get()-(time()-connection.personalSuccessNukeTime)
+    teamSuccessTimeLeft = teamSuccessCDConfig.get()-(time()-(connection.protocol.team1SuccessNukeTime if connection.team.id==0 else connection.protocol.team2SuccessNukeTime))
     
-    personalTimeLeft = playerCD-(time()-connection.personalNukeTime)
-    teamTimeLeft = teamCD-(time()-(connection.protocol.team1NukeTime if connection.team.id==0 else connection.protocol.team2NukeTime))
+    personalTimeLeft = playerCDConfig.get()-(time()-connection.personalNukeTime)
+    teamTimeLeft = teamCDConfig.get()-(time()-(connection.protocol.team1NukeTime if connection.team.id==0 else connection.protocol.team2NukeTime))
     if(personalSuccessTimeLeft>0):
         connection.send_chat_error("Your nuke is on cooldown for another %s seconds" %(round(personalSuccessTimeLeft,1)))
         return
@@ -177,15 +165,17 @@ def nuke(connection, *args):
     centerX = aimPosX + (randomRadius * cos(randomDegrees))
     centerY = aimPosY + (randomRadius * sin(randomDegrees))
     
+    nukeLaunchTime = nukeLaunchTimeConfig.get()
+    
     #dropNuke(centerX, centerY, accuracy, connection)
     reactor.callLater(nukeLaunchTime, dropNuke, centerX, centerY, accuracy, connection.team, connection)
     #warningOnInterval, warningInterval
-    if(warningOnInterval and nukeLaunchTime>warningInterval):
+    warningInterval = warningIntervalConfig.get()
+    if(warningOnIntervalConfig.get() and nukeLaunchTime>warningInterval):
         print("WarningOnInterval true and launch time is greater than interval")
-        #print("first call time: %s, second %s" %(nukeLaunchTime%warningInterval, warningInterval * floor(nukeLaunchTime/warningInterval)))
         reactor.callLater(nukeLaunchTime%warningInterval, intervalWarning, connection, warningInterval * floor(nukeLaunchTime/warningInterval))
-    
-    if(warningCountdown):
+    warningCountdownStart = warningCountdownStartConfig.get()
+    if(warningCountdownConfig.get()):
         if(nukeLaunchTime>=warningCountdownStart):
             reactor.callLater(nukeLaunchTime-warningCountdownStart, countdownWarning, connection, warningCountdownStart)
         else:
@@ -195,12 +185,14 @@ def nuke(connection, *args):
     
 
 def intervalWarning(connection, timeLeft):
+    warningInterval = warningIntervalConfig.get()
+    warningCountdown = warningCountdownConfig.get()
     if(timeLeft < warningInterval):
         if(not warningCountdown):
             connection.protocol.broadcast_chat("NUKE IMMINENT", global_message=True)
     else:
         connection.protocol.broadcast_chat("NUKE IN: %s" %(round(timeLeft)), global_message = True)
-        if(not(round(timeLeft) <= warningCountdownStart+warningInterval and warningCountdown)):
+        if(not(round(timeLeft) <= warningCountdownStartConfig.get()+warningInterval and warningCountdown)):
             reactor.callLater(warningInterval, intervalWarning, connection, min(timeLeft,timeLeft-warningInterval))
         
 def countdownWarning(connection, timeLeft):
@@ -211,16 +203,17 @@ def countdownWarning(connection, timeLeft):
         reactor.callLater(1, countdownWarning, connection, timeLeft-1)
 
 def dropNuke(x, y, accuracy, connectionTeam, connection=None):
-    #print(connectionTeam)
     mapData = connection.protocol.map
     z = mapData.get_z(x, y)
-    #print(x,y,z)
     centerPosition = [x,y,z]
     
     block_action = loaders.BlockAction()
     block_action.value = 3
     block_action.player_id = 31
     
+    radius = radiusConfig.get()
+    upHeight = upHeightConfig.get()
+    downHeight = downHeightConfig.get()
     for x in range(-1*radius,radius):
         block_action.x = centerPosition[0]+x
         for y in range(-1*radius,radius):
@@ -236,26 +229,32 @@ def dropNuke(x, y, accuracy, connectionTeam, connection=None):
         for player in players:
             ploc = player.get_location()
             if(sqrt((ploc[0]-centerPosition[0])**2 + (ploc[1]-centerPosition[1])**2)<=radius and (centerPosition[2]-upHeight+4) <= (ploc[2]) <= (centerPosition[2]+downHeight+2)):
-                player.kill(kill_type=4)
+                
+                #player.kill(kill_type=GRENADE_KILL)
+                
+                killGrenade = connection.protocol.world.create_object(Grenade, 0.0, Vertex3(-5, -5, -5), None, Vertex3(0,0,2), None)
+                killGrenade.name = "NoStreak"
+                player.kill(kill_type=GRENADE_KILL, by = connection, grenade = killGrenade)
+                
                 connection.personalSuccessNukeTime = time()
                 if(connectionTeam.id==0):
                     connection.protocol.team1SuccessNukeTime = time()
                 else:
                     connection.protocol.team2SuccessNukeTime = time()
-    killPlayers((connection.protocol.team_1 if connectionTeam.id==1 else connection.protocol.team_2).get_players())
-    #if(friendly_fire): 
-    #    killPlayers(connection.team.get_players())
+    killPlayers(connectionTeam.other.get_players())
+    #killPlayers((connection.protocol.team_1 if connectionTeam.id==1 else connection.protocol.team_2).get_players())
+    if(nukeTKConfig.get()): 
+        killPlayers(connection.team.get_players())
+    grenadeAmount = grenadeAmountConfig.get()
     for i in range(0,grenadeAmount):
-        randomDistance = (maximumRadius - radius) / (1 + exp(-flatness * (i-shiftness)))
-        fuse = (propogationTime)/(grenadeAmount-radius)*i
+        randomDistance = (maximumRadiusConfig.get() - radius) / (1 + exp(-flatnessConfig.get() * (i-shiftnessConfig.get())))
+        fuse = (propogationTimeConfig.get())/(grenadeAmount-radius)*i
         randomDegrees = random() * 360
         grenadeX = centerPosition[0] + (randomDistance * cos(randomDegrees))
         grenadeY = centerPosition[1] + (randomDistance * sin(randomDegrees))
-        grenade = connection.protocol.world.create_object(Grenade, fuse, Vertex3(grenadeX, grenadeY, min(62,mapData.get_z(grenadeX, grenadeY)+ceil((random()-0.25)*1.5))), None, Vertex3(0,0,2), connection.grenade_exploded)
+        grenade = connection.protocol.world.create_object(Grenade, fuse, Vertex3(grenadeX, grenadeY, min(62,mapData.get_z(grenadeX, grenadeY)+ceil((random()-0.25)*1.5))), None, Vertex3(0,0,2), connection.nuke_grenade_exploded)
         
-        #print(grenade.team)
         grenade.team = connectionTeam
-        #print(grenade.team)
         grenade.name = "nadeNoStreak" + ("NukeTeamID"+str(connectionTeam.id))
     if(connectionTeam.id==0):
         connection.protocol.team1NukeTime = time()
@@ -269,10 +268,16 @@ def apply_script(protocol, connection, config):
         nukesAvailable = 0
         
         def on_hit(self, hit_amount, hit_player, kill_type, grenade):
-            #print(hit_amount)
             connection.on_hit(self, hit_amount, hit_player, kill_type, grenade)
         
-        def grenade_exploded(self, grenade):
+        #def nuke_hit(self, hit_amount, hit_player, kill_type, grenade):
+            
+        
+        def nuke_grenade_exploded(self, grenade):
+            if(self.name is None):
+                self.name = "AAA"
+                self.team = self.protocol.team_2 if "NukeTeamID1" in grenade.name else self.protocol.team_1
+                grenade.team = self.team
             import math
             if self.name is None or self.team.spectator:
                 return
@@ -288,7 +293,7 @@ def apply_script(protocol, connection, config):
             x = int(math.floor(x))
             y = int(math.floor(y))
             z = int(math.floor(z)) 
-            for player_list in (self.team.other.get_players(), (self,), self.team.get_players() if ("Nuke" in grenade.name and nukeTK) else []):
+            for player_list in (self.team.other.get_players(), (self,), self.team.get_players() if ("Nuke" in grenade.name and nukeTKConfig.get()) else []):
                 for player in player_list:
                     if not player.hp:
                         continue
@@ -318,19 +323,8 @@ def apply_script(protocol, connection, config):
             block_action.player_id = self.player_id
             self.protocol.broadcast_contained(block_action, save=True)
             self.protocol.update_entities()
-        
-            #return connection.grenade_exploded(self, grenade)
-        """
-        def grenade_exploded(self, grenade):
-            print(self.name)
-            if("Nuke" in grenade.name and self.name is None):
-                self.name = "AAA"
-                self.team = self.protocol.team_2 if "NukeTeamID1" in grenade.name else self.protocol.team_1
-                grenade.team = self.team
-            return connection.grenade_exploded(self, grenade)
-        """
+            
         def on_kill(self, killer, kill_type, grenade):
-            #print("registered kill")
             if(grenade is not None):
                 if("Nuke" in grenade.name):
                     killer.personalSuccessNukeTime = time()

@@ -17,6 +17,13 @@ teamSuccessCooldown = 30
 playerSuccessCooldown = 30
 teamCooldown = 5
 playerCooldown = 5
+launchTime = 2
+warningGlobalInitial = true
+warningOnInterval = true
+warningOnCountdown = false
+warningCountdownStart = 2
+interval = 0.25
+friendlyFire = true
 
 
 hashtag.py
