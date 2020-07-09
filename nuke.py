@@ -18,7 +18,9 @@ nukeErrorMessage = "Invalid Input, provide coordinate (eg: C3) and region (eg: N
 sectionConfig = config.section('nuke')
 radius = sectionConfig.option('explosionRadius', default = 10).get()
 maximumRadius = sectionConfig.option('maximumExplosionRadius', default = 50).get()
-fallOff = sectionConfig.option('fallOff', default = 0.0025).get() #Used in the mathematical expression for making a curve for how far the blast should go
+flatness = sectionConfig.option('flatness', default = 0.0083).get()
+shiftness = sectionConfig.option('shiftness', default = 131).get()
+#f\left(x\right)\ =\ \left(\left(800-100\right)\right)/(1+1e^{-k\left(x-\left(S\right)\right)})
 propogationTime = sectionConfig.option('propogationTime', default = 2.5).get()
 upHeight = sectionConfig.option('upHeight', default = 8).get()
 downHeight = sectionConfig.option('downHeight', default = 2).get()
@@ -169,9 +171,6 @@ def nuke(connection, *args):
     elif(teamTimeLeft>0):
         connection.send_chat_error("Your nuke is on a team cooldown for another %s seconds" %(round(teamTimeLeft,1)))
         return
-        
-
-
     
     randomDegrees = random() * 360
     randomRadius = accuracy * random()
@@ -247,7 +246,7 @@ def dropNuke(x, y, accuracy, connectionTeam, connection=None):
     #if(friendly_fire): 
     #    killPlayers(connection.team.get_players())
     for i in range(0,grenadeAmount):
-        randomDistance = maximumRadius - ((maximumRadius-radius) * exp(-fallOff*i))
+        randomDistance = (maximumRadius - radius) / (1 + exp(-flatness * (i-shiftness)))
         fuse = (propogationTime)/(grenadeAmount-radius)*i
         randomDegrees = random() * 360
         grenadeX = centerPosition[0] + (randomDistance * cos(randomDegrees))
