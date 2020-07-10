@@ -4,7 +4,6 @@ from pyspades import contained as loaders
 sectionConfig = config.section('grenades')
 grenadeLimitConfig = sectionConfig.option('startingGrenades', default = 3)
 grenadeDudLimitConfig = sectionConfig.option('duds', default = 5)
-
 startingGrenades = grenadeLimitConfig.get()
 dudLimit = grenadeDudLimitConfig.get()
 def apply_script(protocol, connection, config):
