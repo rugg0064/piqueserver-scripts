@@ -7,7 +7,7 @@ from pyspades import contained as loaders
 from math import ceil, sqrt, pi, sin, cos, exp, floor
 from random import random
 from time import time
-from pyspades.constants import GRENADE_KILL
+from pyspades.constants import GRENADE_KILL, DESTROY_BLOCK
 from twisted.internet import reactor
 
 #Things for overriding grenade_explode
@@ -208,8 +208,8 @@ def dropNuke(x, y, accuracy, connectionTeam, connection=None):
     centerPosition = [x,y,z]
     
     block_action = loaders.BlockAction()
-    block_action.value = 3
-    block_action.player_id = 31
+    block_action.value = DESTROY_BLOCK
+    block_action.player_id = 32
     
     radius = radiusConfig.get()
     upHeight = upHeightConfig.get()
@@ -223,7 +223,8 @@ def dropNuke(x, y, accuracy, connectionTeam, connection=None):
                 block_action.z = centerPosition[2] + z
                 if(sqrt((block_action.x-centerPosition[0])**2 + (block_action.y-centerPosition[1])**2) <= radius):
                     if(mapData.get_color(block_action.x, block_action.y, block_action.z) is not None):
-                        connection.protocol.broadcast_contained(block_action, save=True)
+                        connection.protocol.broadcast_contained(block_action)
+                        mapData.remove_point(block_action.x, block_action.y, block_action.z)
 
     def killPlayers(players):
         for player in players:
