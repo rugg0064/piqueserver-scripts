@@ -10,7 +10,7 @@ def apply_script(protocol, connection, config):
         protectionCallID = None
         def on_shoot_set(self, fire):
             if(fire is True):
-                self.ilvulnerable = False
+                self.invulnerable = False
             connection.on_shoot_set(self, fire)
             
         def on_hit(self, hit_amount, hit_player, kill_type, grenade):
