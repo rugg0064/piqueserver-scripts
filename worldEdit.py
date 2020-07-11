@@ -9,8 +9,17 @@ from pyspades.common import make_color
 def stack(connection, *args):
     pos1 = connection.selectPos1
     pos2 = connection.selectPos2
+    
+    try:
+        offset = [(0,0,-1),(0,0,1),(0,-1,0),(1,0,0),(0,1,0),(-1,0,0)][['up', 'down', 'north', 'east', 'south', 'west'].index(args[0])]
+    except ValueError:
+        return
     if(None in (pos1,pos2)):
         return
+    try:
+        amount = int(args[1])
+    except Exception as E:
+        amount = 1
     map = connection.protocol.map
     xh = abs(pos1[0]-pos2[0])+1 #IN XYZ ORDER
     yh = abs(pos1[1]-pos2[1])+1
@@ -22,7 +31,70 @@ def stack(connection, *args):
             for z in range(*(pos1[2], pos2[2] + 1) if pos1[2] < pos2[2] else (pos2[2], pos1[2] + 1)):
                 allBlocks[i] = map.get_point(x, y, z)
                 i += 1
-    print(allBlocks)
+    #print(len(allBlocks))
+    #print(None in allBlocks)
+
+    #print("we here")
+    operations = []
+    for run in range(0, amount):
+        operations.append([])
+        operations[run-1].append("NEW")
+        block_action = BlockAction()
+        block_action.value = DESTROY_BLOCK
+        block_action.player_id = 32
+        set_color = SetColor()
+        set_color.value = connection.selectColor if connection.selectColor is not None else 0x707070
+        set_color.player_id = 32
+        i = 0
+        for x in range(*(pos1[0], pos2[0] + 1) if pos1[0] < pos2[0] else (pos2[0], pos1[0] + 1)):
+            block_action.x = x + (offset[0]*xh*(run+1))
+            for y in range(*(pos1[1], pos2[1] + 1) if pos1[1] < pos2[1] else (pos2[1], pos1[1] + 1)):
+                block_action.y = y + (offset[1]*yh*(run+1))
+                for z in range(*(pos1[2], pos2[2] + 1) if pos1[2] < pos2[2] else (pos2[2], pos1[2] + 1)):
+                    block_action.value = DESTROY_BLOCK
+                    #print("aa")
+                    #print((offset[0]*xh*(run+1)))
+                    #print((offset[1]*yh*(run+1)))
+                    block_action.z = z + (offset[2]*zh*(run+1))
+                    #print((offset[2]*zh*(run+1)))
+                    if(not allBlocks[i][0]):
+                        if map.get_point(block_action.x, block_action.y, block_action.z):
+                            connection.protocol.broadcast_contained(block_action)
+                            map.remove_point(block_action.x, block_action.y, block_action.z)
+                        i += 1
+                        operations[run-1].append("blank")
+                        continue
+                    else:
+                        #print(map.get_point(block_action.x, block_action.y, block_action.z))
+                        if(not map.get_point(block_action.x, block_action.y, block_action.z)):
+                            #print("CHANGING BLOCK COLOR")
+                            block = allBlocks[i]
+                            blockColor = block[1]
+                            icolor = blockColor[0]*(256**2) + blockColor[1]*256 + blockColor[2]
+                            set_color.value = icolor
+                            connection.protocol.broadcast_contained(set_color)
+                        else:
+                            #print("PLACING A NEW BLOCK")
+                            block_action.value = BUILD_BLOCK
+                            connection.protocol.broadcast_contained(block_action)
+                            block = allBlocks[i]
+                            blockColor = block[1]
+                            icolor = blockColor[0]*(256**2) + blockColor[1]*256 + blockColor[2]
+                            icolor = blockColor[0]*(256**2) + blockColor[1]*256 + blockColor[2]
+                            set_color.value = icolor
+                            connection.protocol.broadcast_contained(set_color)
+                            
+                            ctuple = (set_color.value >> 16 & 255, set_color.value >> 8 & 255, set_color.value & 255)
+                            map.set_point(block_action.x, block_action.y, block_action.z, ctuple)
+                        i += 1
+                        operations[run-1].append("block")
+                        continue
+    #for line in operations:
+    #    for item in line:
+    #        print(item)
+    #print(operations)    
+                
+    
 @command('warp')
 @player_only
 def warp(connection, *args):
@@ -293,7 +365,7 @@ def set(connection, *args):
     block_action.value = DESTROY_BLOCK
     block_action.player_id = 32
     set_color = SetColor()
-    set_color.value = connection.selectColor if connection.selectColor is not None else 0
+    set_color.value = connection.selectColor if connection.selectColor is not None else 0x707070
     set_color.player_id = 32
     map = connection.protocol.map
     n = 0
