@@ -4,17 +4,44 @@ from pyspades.contained import BlockAction, SetColor
 from pyspades.constants import DESTROY_BLOCK, BUILD_BLOCK
 from pyspades.common import make_color
 
+@command('stack')
+@player_only
+def stack(connection, *args):
+    pos1 = connection.selectPos1
+    pos2 = connection.selectPos2
+    if(None in (pos1,pos2)):
+        return
+    map = connection.protocol.map
+    xh = abs(pos1[0]-pos2[0])+1 #IN XYZ ORDER
+    yh = abs(pos1[1]-pos2[1])+1
+    zh = abs(pos1[2]-pos2[2])+1
+    allBlocks = [None]*(xh*yh*zh)
+    i = 0
+    for x in range(*(pos1[0], pos2[0] + 1) if pos1[0] < pos2[0] else (pos2[0], pos1[0] + 1)):
+        for y in range(*(pos1[1], pos2[1] + 1) if pos1[1] < pos2[1] else (pos2[1], pos1[1] + 1)):
+            for z in range(*(pos1[2], pos2[2] + 1) if pos1[2] < pos2[2] else (pos2[2], pos1[2] + 1)):
+                allBlocks[i] = map.get_point(x, y, z)
+                i += 1
+    print(allBlocks)
 @command('warp')
 @player_only
 def warp(connection, *args):
     print('warp')
+    if len(args)==2:
+        try:
+            x = int(args[0])
+            y = int(args[1])
+            z = connection.protocol.map.get_z(x,y)-2
+            connection.set_location((x, y, z))
+            return 
+        except Exception as E:
+            print(E)
     if len(args) == 3:
         try:
             x = int(args[0])
             y = int(args[1])
             z = int(args[2])
-            print(connection.set_location_safe)
-            connection.set_location_safe((x, y, z))
+            connection.set_location((x, y, z))
             return
         except Exception as E:
             print(E)
