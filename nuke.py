@@ -28,7 +28,7 @@ upHeightConfig = sectionConfig.option('upHeight', default = 8)
 downHeightConfig = sectionConfig.option('downHeight', default = 2)
 grenadeAmountConfig = sectionConfig.option('grenadeAmount', default = 400)
 teamSuccessCDConfig = sectionConfig.option('teamSuccessCooldown', default = 30)
-playerSuccessCDConfig = sectionConfig.option('playerSuccessCooldown', default = 30)
+playerSuccessCDConfig = sectionConfig.option('playerSuccessCooldown', default = 60)
 teamCDConfig = sectionConfig.option('teamCooldown', default = 5)
 playerCDConfig = sectionConfig.option('playerCooldown', default = 5)
 
