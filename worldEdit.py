@@ -25,16 +25,15 @@ def stack(connection, *args):
     yh = abs(pos1[1]-pos2[1])+1
     zh = abs(pos1[2]-pos2[2])+1
     allBlocks = [None]*(xh*yh*zh)
+    allPositions = [None]*len(allBlocks)
     i = 0
     for x in range(*(pos1[0], pos2[0] + 1) if pos1[0] < pos2[0] else (pos2[0], pos1[0] + 1)):
         for y in range(*(pos1[1], pos2[1] + 1) if pos1[1] < pos2[1] else (pos2[1], pos1[1] + 1)):
             for z in range(*(pos1[2], pos2[2] + 1) if pos1[2] < pos2[2] else (pos2[2], pos1[2] + 1)):
                 allBlocks[i] = map.get_point(x, y, z)
+                allPositions = (x,y,z)
                 i += 1
-    #print(len(allBlocks))
-    #print(None in allBlocks)
-
-    #print("we here")
+    
     operations = []
     for run in range(0, amount):
         operations.append([])
@@ -52,11 +51,7 @@ def stack(connection, *args):
                 block_action.y = y + (offset[1]*yh*(run+1))
                 for z in range(*(pos1[2], pos2[2] + 1) if pos1[2] < pos2[2] else (pos2[2], pos1[2] + 1)):
                     block_action.value = DESTROY_BLOCK
-                    #print("aa")
-                    #print((offset[0]*xh*(run+1)))
-                    #print((offset[1]*yh*(run+1)))
                     block_action.z = z + (offset[2]*zh*(run+1))
-                    #print((offset[2]*zh*(run+1)))
                     if(not allBlocks[i][0]):
                         if map.get_point(block_action.x, block_action.y, block_action.z):
                             connection.protocol.broadcast_contained(block_action)
@@ -65,16 +60,13 @@ def stack(connection, *args):
                         operations[run-1].append("blank")
                         continue
                     else:
-                        #print(map.get_point(block_action.x, block_action.y, block_action.z))
                         if(not map.get_point(block_action.x, block_action.y, block_action.z)):
-                            #print("CHANGING BLOCK COLOR")
                             block = allBlocks[i]
                             blockColor = block[1]
                             icolor = blockColor[0]*(256**2) + blockColor[1]*256 + blockColor[2]
                             set_color.value = icolor
                             connection.protocol.broadcast_contained(set_color)
                         else:
-                            #print("PLACING A NEW BLOCK")
                             block_action.value = BUILD_BLOCK
                             connection.protocol.broadcast_contained(block_action)
                             block = allBlocks[i]
@@ -89,12 +81,7 @@ def stack(connection, *args):
                         i += 1
                         operations[run-1].append("block")
                         continue
-    #for line in operations:
-    #    for item in line:
-    #        print(item)
-    #print(operations)    
                 
-    
 @command('warp')
 @player_only
 def warp(connection, *args):
@@ -118,7 +105,6 @@ def warp(connection, *args):
         except Exception as E:
             print(E)
 
-
 @command('pos1')
 @player_only
 def pos1(connection):
@@ -127,7 +113,6 @@ def pos1(connection):
     connection.selectPos1 = loc
     connection.send_chat('Selected pos: ' + str(loc))
 
-
 @command('pos2')
 @player_only
 def pos2(connection):
@@ -135,7 +120,6 @@ def pos2(connection):
     loc = (floor(loc[0]), floor(loc[1]), floor(loc[2]))
     connection.selectPos2 = loc
     connection.send_chat('Selected pos: ' + str(loc))
-
 
 @command('hpos1')
 @player_only
@@ -147,7 +131,6 @@ def hpos1(connection):
     else:
         return
 
-
 @command('hpos2')
 @player_only
 def hpos2(connection):
@@ -158,13 +141,11 @@ def hpos2(connection):
     else:
         return
 
-
 @command('sel')
 @player_only
 def printSel(connection):
     connection.send_chat(str(connection.selectPos1))
     connection.send_chat(str(connection.selectPos2))
-
 
 @command('color', 'c')
 @player_only
@@ -176,7 +157,7 @@ def setColor(connection, *args):
             r = c >> 16 & 255
             g = c >> 8 & 255
             b = c & 255
-            connection.send_chat(str((r, g, b)) + ' or ' + str(hex(r)[2:].zfill(2) + hex(g)[2:].zfill(2) + hex(b)[2:].zfill(2)))
+            connection.send_chat(str((r, g, b)) + ' or ' + str(hex(r)[2:].zfill(2) + hex(g)[2:].zfill(2j kbm) + hex(b)[2:].zfill(2)))
         else:
             connection.send_chat('You havent set a color yet! use /color or /c')
     else:
@@ -201,7 +182,6 @@ def setColor(connection, *args):
 
         else:
             connection.send_chat('Invalid input')
-
 
 @command('shift')
 @player_only
@@ -283,7 +263,6 @@ def shift(connection, *args):
                              pos2[0] - amount, pos2[1], pos2[2])
                             connection.selectPos1 = (pos1[0] - amount, pos1[1], pos1[2])
 
-
 @command('expand')
 @player_only
 def expand(connection, *args):
@@ -352,7 +331,6 @@ def expand(connection, *args):
                             connection.selectPos2 = (
                              pos2[0] - amount, pos2[1], pos2[2])
 
-
 @command('set')
 @player_only
 def set(connection, *args):
@@ -393,7 +371,6 @@ def set(connection, *args):
                 n += 1
 
     connection.send_chat('set %s blocks' % n)
-
 
 def apply_script(protocol, connection, config):
 
