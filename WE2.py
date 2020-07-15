@@ -1,14 +1,15 @@
 from piqueserver.commands import command, player_only
-from math import floor, ceil
+from math import floor, ceil, sqrt
 from pyspades.constants import DESTROY_BLOCK, BUILD_BLOCK
 from pyspades.contained import BlockAction, SetColor
 
 availableModes = ("cuboid", "ellipsoid", "cyl")
-
+availableBrushes = ("wand", "sphere", "smooth")
 def colorTupleToInt(r, g, b):
     return r*(256**2) + g*256 + b
 
 def colorIntToTuple(n):
+    n = int(n)
     r = (n>>16) & 0b11111111
     g = (n>>8) & 0b11111111
     b = n & 0b11111111
@@ -28,6 +29,18 @@ def mode(connection, *args):
     elif(args[0].lower() in availableModes):
         connection.send_chat("Mode set to %s" %(args[0].lower()))
         connection.mode = args[0].lower()
+
+@command('brushsize')
+@player_only
+def mode(connection, *args):
+    if(len(args)==0):
+        connection.send_chat("Current brush size: %s" %(str(connection.brushSize)))
+    else:
+        try:
+            connection.brushSize = int(args[0])
+        except ValueError as ver:
+            connection.send_chat("Invalid input")
+            return
 
 @command('sel')
 @player_only
@@ -57,6 +70,11 @@ def warp(connection, *args):
             return
         except Exception as E:
             print(E)
+
+@command('warph')
+@player_only
+def warph(connection):
+    connection.set_location( (connection.world_object.cast_ray(512)) )
 
 @command('pos1')
 @player_only
@@ -115,9 +133,25 @@ def selChunk(connection):
 @command('wand')
 @player_only
 def activateWand(connection):
-    connection.wandActive = not connection.wandActive
-    connection.send_chat("Wand set to %s" %("active" if connection.wandActive else "inactive"))
+    connection.brushActive = not connection.brushActive
+    connection.brushMode = "wand"
+    if(connection.brushActive):
+        connection.send_chat("Brush set to wand mode")
+    else:
+        connection.send_chat("Brush mode disabled")
 
+@command('brush')
+@player_only    
+def activateBrush(connection, *args):
+    if(len(args)==0):
+        connection.brushActive = not connection.brushActive
+        connection.send_chat("Brush set to %s, current mode: " %("active" if connection.brushActive else "inactive", connection.brushMode))
+    else:
+        connection.brushActive = True
+        if(args[0].lower() in availableBrushes):
+            connection.send_chat("Brush mode set to %s" %(args[0].lower()))
+            connection.brushMode = args[0].lower()
+        
 @command('expand')
 @player_only
 def expand(connection, *args):
@@ -211,24 +245,30 @@ def shift(connection, *args):
 @player_only
 def createCyl(connection, *args):
     if(len(args)!=2):
+        print("bad input")
         return
     try:
         radius = int(args[0])
         height = int(args[1])
     except ValueError as error:
+        print("bad input")
         return
     blocks = []
-    map = connection.protocol.map
-    loc = connection.get_location()
-    px = floor(loc[0]) + 0.5
-    py = floor(loc[1]) + 0.5
-    pz = floor(loc[2])
-    for x in range(floor(px-radius), ceil(px+radius)):
-        for y in range(floor(py-radius), ceil(py+radius)):
-            for z in range(pz-height, pz):
-                value = ((((x+0.5)-px)**2)/(ceil(radius)**2)) + ((((y+0.5)-py)**2)/(ceil(radius)**2))
-                if(value <= 1):
-                    blocks.append( (True, (x,y,z), connection.WEColor) )
+    print("aaa")
+    pos1 = [*connection.get_location()]
+    pos2 = [*connection.get_location()]
+    pos1[0] -= radius
+    pos1[1] -= radius
+    pos1[2] -= 1
+    pos2[0] += radius
+    pos2[1] += radius
+    pos2[2] -= height
+    
+    pos1 = [round(pos1[0]), round(pos1[1]), round(pos1[2])]
+    pos2 = [round(pos2[0]), round(pos2[1]), round(pos2[2])]
+    blocks = []
+    for position in getCylPositions(pos1,pos2):
+        blocks.append( (True, position, connection.WEColor) )
     connection.protocol.constructSelection(blocks)
     
 @command('stack')
@@ -329,6 +369,41 @@ def getPositions(pos1, pos2, mode):
         print("VALUE ERROR: " + str(ver))
         return getCuboidPositions(pos1,pos2)
 
+def getNeighbors(pos, map):
+    neighbors = 0
+    for x in range(pos[0]-1, pos[0]+1+1):
+        for y in range(pos[1]-1, pos[1]+1+1):
+            for z in range(pos[2]-1, pos[2]+1+1):
+                if( x!=pos[0] or y!=pos[1] or z!=pos[2]):
+                    if(map.get_point(x,y,z)[0]):
+                        neighbors += 1
+    return neighbors
+    
+def getNeighborColors(pos, map):
+    colors = []
+    for x in range(pos[0]-1, pos[0]+1+1):
+        for y in range(pos[1]-1, pos[1]+1+1):
+            for z in range(pos[2]-1, pos[2]+1+1):
+                point = map.get_point(x,y,z)
+                if(point[0]):
+                    if(point[1] != (0,0,0)):
+                        colors.append(point[1])
+    n = len(colors)
+    if(n==0):
+        return None
+    r,g,b = 0,0,0
+    for color in colors:
+        r += color[0]**2
+        g += color[1]**2
+        b += color[2]**2
+    r /= n
+    r = sqrt(r)
+    g /= n
+    g = sqrt(g)
+    b /= n
+    b = sqrt(b)
+    return (r,g,b)
+    
 @command('set')
 @player_only
 def set(connection, *args):
@@ -387,27 +462,89 @@ def sort_positions(pos1, pos2):
     nz2 = max(z1, z2)
     return ((nx1, ny1, nz1),(nx2, ny2, nz2))
 
+@command('smoothstr')
+@player_only
+def smoothSize(connection, *args):
+    if(len(args)==0):
+        connection.send_chat("Current brush size: %s" %(str(connection.brushSize)))
+    else:
+        try:
+            connection.smoothStr = int(args[0])
+        except ValueError as ver:
+            connection.send_chat("Invalid input")
+            return
+
 def apply_script(protocol, connection, config):
     class worldEditConnection(connection):
         mode = "cyl"
         WEColor = 0x707070
         pos1 = None
         pos2 = None
-        wandActive = False
+        brushActive = False
+        brushMode = "wand"
+        brushSize = 0
+        smoothStr = 15
         def on_shoot_set(self, fire):
-            if(fire and self.wandActive):
+            if(fire and self.brushActive):
                 hit = self.world_object.cast_ray(128)
                 if(hit):
-                    self.pos1 = hit
-                    self.send_chat("new position: (%s,%s)" %(self.pos1, self.pos2))
+                    if(self.brushMode == "wand"):
+                        self.pos1 = hit
+                        self.send_chat("new position: (%s,%s)" %(self.pos1, self.pos2))
+                    if(self.brushMode == "sphere"):
+                        pos1 = [*hit]
+                        pos2 = [*hit]
+                        value = self.brushSize
+                        pos1[0] -= value
+                        pos1[1] -= value
+                        pos1[2] -= value
+                        pos2[0] += value
+                        pos2[1] += value
+                        pos2[2] += value
+                        blocks = []
+                        for position in getEllipsoidPositions(pos1,pos2):
+                            blocks.append( (True, position, self.WEColor) )
+                        self.protocol.constructSelection(blocks)
+                    if(self.brushMode == "smooth"):
+                        map = self.protocol.map
+                        pos1 = [*hit]
+                        pos2 = [*hit]
+                        value = self.brushSize
+                        pos1[0] -= value
+                        pos1[1] -= value
+                        pos1[2] -= value
+                        pos2[0] += value
+                        pos2[1] += value
+                        pos2[2] += value
+                        positions = getEllipsoidPositions(pos1,pos2)
+                        shouldExist = []
+                        for position in positions:
+                            neighbors = getNeighbors(position, map)
+                            shouldExist.append(neighbors > self.smoothStr)   
+                        blocks = []
+                        for i in range(0, len(positions)):
+                            '''
+                            neighborColorResult = getNeighborColors(positions[i], map)
+                            getPoint = map.get_point(*positions[i])
+                            if(neighborColorResult):
+                                color = colorTupleToInt(*neighborColorResult)
+                            elif(getPoint[0]):
+                                color = colorTupleToInt(*getPoint[1])
+                            else:
+                                color = self.WEColor
+                            '''
+                            color = self.WEColor
+                            blocks.append( (shouldExist[i], positions[i], color) )
+                        self.protocol.constructSelection(blocks)
             connection.on_shoot_set(self, fire)
             
         def on_secondary_fire_set(self, fire): 
-            if(fire and self.wandActive):
+            if(fire and self.brushActive):
                 hit = self.world_object.cast_ray(128)
                 if(hit):
-                    self.pos2 = hit
-                    self.send_chat("new position: (%s,%s)" %(self.pos1, self.pos2))
+                    if(self.brushMode == "wand"):
+                        self.pos2 = hit
+                        self.send_chat("new position: (%s,%s)" %(self.pos1, self.pos2))
             connection.on_secondary_fire_set(self, fire)
     class worldEditProtocol(protocol):
         def constructSelection(self, blockList):
