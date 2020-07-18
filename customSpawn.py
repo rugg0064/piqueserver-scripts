@@ -2,16 +2,21 @@ from pyspades.constants import BLUE_FLAG, BLUE_BASE, GREEN_FLAG, GREEN_BASE
 from random import choice
 
 def choosePos(self, protocol, spawns, callBack, *args):
+    waterSpawns = protocol.map_info.extensions['water_spawn']
+    #print("SPAWNING")
     if(spawns is not None):
         optionsx = range(spawns[0][0], spawns[1][0]+1)
         optionsy = range(spawns[0][1], spawns[1][1]+1)
         positions = []
         for x in optionsx:
             for y in optionsy:
-                positions.append((x,y))
+                ZLevel = protocol.map.get_z(x,y)
+                #print(ZLevel)
+                if(not (ZLevel > 61)):
+                    positions.append((x,y,ZLevel))
         pos = choice(positions)
-        valueZ = protocol.map.get_z(pos[0],pos[1])
-        return((pos[0],pos[1],valueZ))
+        #valueZ = protocol.map.get_z(pos[0],pos[1])
+        return((pos[0],pos[1],pos[2]))
     return(callBack(*args))
 
 def apply_script(protocol, connection, config):
