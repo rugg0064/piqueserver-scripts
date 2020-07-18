@@ -4,8 +4,10 @@ from pyspades.constants import DESTROY_BLOCK, BUILD_BLOCK
 from pyspades.contained import BlockAction, SetColor
 from random import random
 
+DIRT_COLOR = (101, 65, 40)
+
 availableModes = ("cuboid", "ellipsoid", "cyl")
-availableBrushes = ("wand", "sphere", "smooth", "paint", "noise", "ground", "surface")
+availableBrushes = ("wand", "sphere", "smooth", "paint", "noise", "ground", "surface", "blend", "terrain")
 def colorTupleToInt(r, g, b):
     r = int(r)
     g = int(g)
@@ -25,7 +27,7 @@ def displayPos(connection):
     pos = connection.get_location()
     connection.send_chat("Your position: %s" %(str(floor(pos[0])) + ", " + str(floor(pos[1])) + ", " + str(floor(pos[2]))))
 
-@command('posh')
+@command('posh', 'ph')
 @player_only
 def displayHPos(connection):
     hit = connection.world_object.cast_ray(512)
@@ -40,7 +42,17 @@ def setMode(connection, *args):
         connection.send_chat("Mode set to %s" %(args[0].lower()))
         connection.mode = args[0].lower()
 
-def connectionAttrChanger(connection, attr, *args):
+def connectionAttrFloatChanger(connection, attr, *args):
+    if(len(args)==0):
+        connection.send_chat("Current %s: %s" %(attr, getattr(connection, attr)))
+    else:
+        try:
+            setattr(connection, attr, float(args[0]))
+            connection.send_chat("%s set to: %s" %(attr, getattr(connection, attr)))
+        except ValueError as ver:
+            connection.send_chat("Invalid input")
+            return
+def connectionAttrIntChanger(connection, attr, *args):
     if(len(args)==0):
         connection.send_chat("Current %s: %s" %(attr, getattr(connection, attr)))
     else:
@@ -54,17 +66,17 @@ def connectionAttrChanger(connection, attr, *args):
 @command('brushsize')
 @player_only
 def setBrushSize(connection, *args):
-    connectionAttrChanger(connection, "brushSize", *args)
+    connectionAttrIntChanger(connection, "brushSize", *args)
     
 @command('smoothstr')
 @player_only
 def setSmoothStr(connection, *args):
-    connectionAttrChanger(connection, "smoothStr", *args)
+    connectionAttrFloatChanger(connection, "smoothStr", *args)
     
 @command('brushrez')
 @player_only
 def setBrushRez(connection, *args):
-    connectionAttrChanger(connection, "brushRez", *args)
+    connectionAttrIntChanger(connection, "brushRez", *args)
     
 @command('brush')
 @player_only    
@@ -145,10 +157,13 @@ def warp(connection, *args):
         except Exception as E:
             connection.send_chat("Invalid input")
 
-@command('warph')
+@command('warph', 'wh')
 @player_only
 def warph(connection):
-    connection.set_location( (connection.world_object.cast_ray(512)) )
+    hit = (connection.world_object.cast_ray(512))
+    x,y,z = hit
+    z -= 2
+    connection.set_location( (x,y,z) )
 
 @command('pos1')
 @player_only
@@ -441,14 +456,16 @@ def getNeighbors(pos, resolution, map):
                         neighbors += 1
     return neighbors
     
-def getNeighborColors(pos, map): #DUMPY RIGHT NOW
+def getNeighborColors(pos, resolution, map): #DUMPY RIGHT NOW
     colors = []
-    for x in range(pos[0]-2, pos[0]+2+1):
-        for y in range(pos[1]-2, pos[1]+2+1):
-            for z in range(pos[2]-2, pos[2]+2+1):
+    for x in range(pos[0]-resolution, pos[0]+resolution+1):
+        for y in range(pos[1]-resolution, pos[1]+resolution+1):
+            for z in range(pos[2]-resolution, pos[2]+resolution+1):
                 point = map.get_point(x,y,z)
                 if(point[0]):
-                    if(point[1] != (0,0,0)):
+                    if(point[1] == (0,0,0)):
+                        colors.append(DIRT_COLOR)
+                    else:
                         colors.append(point[1])
     n = len(colors)
     if(n==0):
@@ -516,6 +533,8 @@ def copy(connection):
         solid = point[0]
         color = point[1]
         if(color is not None):
+            if(color == (0,0,0)):
+                color = DIRT_COLOR
             color = colorTupleToInt(*point[1])
         blocks.append( (solid, position, color) )
     connection.copyBlocks = blocks
@@ -548,7 +567,7 @@ def apply_script(protocol, connection, config):
         brushActive = False
         brushMode = "wand"
         brushSize = 5
-        smoothStr = 15
+        smoothStr = 0.5
         brushRez = 1
         copyBlocks = None
         def on_shoot_set(self, fire):
@@ -578,12 +597,24 @@ def apply_script(protocol, connection, config):
                     elif(self.brushMode == "smooth"):
                         for position in brushPositions:
                             neighbors = getNeighbors(position, self.brushRez, map)
-                            if(neighbors > self.smoothStr): #Should be a block
-                                if(not map.get_point(*position)[0]): #But there isn't
-                                    updateBlocks.append( (True, position, self.WEColor) )
+                            if(neighbors > (((self.brushRez*2)+1)**3)*self.smoothStr): #Should be a block
+                                neighborColor = getNeighborColors(position, 2, map)
+                                color = self.WEColor
+                                if(neighborColor is not None):
+                                    color = colorTupleToInt(*neighborColor)
+                                updateBlocks.append( (True, position, color) )
                             else:#Should be no block
                                 if(map.get_point(*position)[0]): #But there is
                                     updateBlocks.append( (False, position, self.WEColor) )
+                        self.protocol.constructSelection(updateBlocks)
+                    elif(self.brushMode == "blend"):
+                        for position in brushPositions:
+                            if(map.get_point(*position)[0]):
+                                neighborColor = getNeighborColors(position, self.brushRez, map)
+                                if(neighborColor is None):
+                                    continue
+                                color = colorTupleToInt(*neighborColor)
+                                updateBlocks.append( (True, position, color) )
                         self.protocol.constructSelection(updateBlocks)
                     elif(self.brushMode == "paint"):
                         for position in brushPositions:
@@ -595,14 +626,16 @@ def apply_script(protocol, connection, config):
                             point = map.get_point(*position)
                             if(point[0]):
                                 color = point[1]
+                                if(color == (0,0,0)):
+                                    color = DIRT_COLOR
                                 r,g,b = color
                                 shade = (random()-0.5)*10
                                 r += shade
                                 g += shade
                                 b += shade
-                                r = max(0,r)
-                                g = max(0,g)
-                                b = max(0,b)
+                                r = min(255,max(0,r))
+                                g = min(255,max(0,g))
+                                b = min(255,max(0,b))
                                 r,g,b = int(r), int(g), int(b)
                                 updateBlocks.append( (True, position, colorTupleToInt(r,g,b)) )
                         self.protocol.constructSelection(updateBlocks)
@@ -618,6 +651,27 @@ def apply_script(protocol, connection, config):
                             neighbors = getNeighbors(position, self.brushRez, map)
                             if(neighbors==(((self.brushRez*2)+1)**3) - 1):
                                 updateBlocks.append( (True, position, self.WEColor) )
+                    elif(self.brushMode == "terrain"):
+                        for position in brushPositions:
+                            neighbors = getNeighbors(position, 1, map)
+                            if(map.get_point(*position)[1]):
+                                if(neighbors<26): #It is a surface block
+                                    slopeField = []
+                                    for i, x in enumerate(range(position[0]-1, position[0]+1)):
+                                        for j, y in enumerate(range(position[1]-1, position[1]+1)):
+                                            slopeField.append(map.get_z(x,y))
+                                    slope = max(slopeField) - min(slopeField)
+                                    if(slope > 5):
+                                        r,g,b = 0x70, 0x70, 0x70
+                                    else:
+                                        off = (random()-0.5)*10
+                                        r = min(255,max(0,off))
+                                        g = min(255,max(0,0x80 + off))
+                                        b = min(255,max(0,off))
+                                    updateBlocks.append( (True, position, colorTupleToInt(r,g,b)) )
+                        self.protocol.constructSelection(updateBlocks)
+
+
                         self.protocol.constructSelection(updateBlocks)
                     connection.send_chat(self, "Brush complete")
             connection.on_shoot_set(self, fire)
@@ -650,8 +704,6 @@ def apply_script(protocol, connection, config):
                 color = block[2]
                 if(blockExists): #IF THERE SHOULD BE A BLOCK
                     if(map.get_point(x,y,z)[0]):#IF THERE IS A BLOCK
-                        #block_action.value = DESTROY_BLOCK
-                        #self.broadcast_contained(block_action)
                         map.remove_point(x, y, z)
                     #if(not map.get_point(x,y,z)[0]): #IF THERE IS NO BLOCK
                     block_action.value = BUILD_BLOCK
@@ -660,6 +712,8 @@ def apply_script(protocol, connection, config):
                     map.set_point(x, y, z, colorIntToTuple(color))
                     self.broadcast_contained(set_color)
                 else: #IF THERE SHOULD BE NO BLOCK
+                    if(z>=63):
+                        continue
                     if(map.get_point(x,y,z)[0]): #THERE IS A BLOCK
                         block_action.value = DESTROY_BLOCK
                         self.broadcast_contained(block_action)
