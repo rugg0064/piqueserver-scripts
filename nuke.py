@@ -219,8 +219,8 @@ def dropNuke(x, y, accuracy, connectionTeam, connection=None):
         for y in range(-1*radius,radius):
             block_action.y = centerPosition[1]+y
             for z in range(-1*downHeight,upHeight):
-                if(z>=63):continue
                 block_action.z = centerPosition[2] + z
+                if(block_action.z >= 63): continue
                 if(sqrt((block_action.x-centerPosition[0])**2 + (block_action.y-centerPosition[1])**2) <= radius):
                     if(mapData.get_color(block_action.x, block_action.y, block_action.z) is not None):
                         connection.protocol.broadcast_contained(block_action)
