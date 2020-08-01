@@ -8,6 +8,7 @@ DIRT_COLOR = (101, 65, 40)
 
 availableModes = ("cuboid", "ellipsoid", "cyl")
 availableBrushes = ("wand", "sphere", "smooth", "paint", "noise", "ground", "surface", "blend", "terrain")
+
 def colorTupleToInt(r, g, b):
     r = int(r)
     g = int(g)
@@ -312,8 +313,8 @@ def shift(connection, *args):
     for i in range(0,3):
         off = offset[i]
         if(off!=0):
-            pos1[i] += off * amount
-            pos2[i] += off * amount
+            connection.pos1[i] += off * amount
+            connection.pos2[i] += off * amount
         else:
             continue
     connection.pos1, connection.pos2 = tuple(pos1),tuple(pos2)
