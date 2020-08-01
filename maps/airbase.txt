@@ -1,0 +1,14 @@
+name = 'Airbase'
+version = '1.0'
+author = 'Rugg'
+description = 'Stratis Airbase'
+extensions = {
+    'team1Spawn' : ((185, 147), (319, 451)),
+    'team2Spawn' : ((420, 180), (480, 414)),
+    'team1Intel' : ((186, 191), (256, 320)),
+    'team2Intel' : ((420, 180), (480, 414)),
+    'team1Base' :  ((186, 191), (256, 320)),
+    'team2Base' :  ((420, 180), (480, 414)),
+	'water_damage' : 3,
+	'water_spawn' : False
+}

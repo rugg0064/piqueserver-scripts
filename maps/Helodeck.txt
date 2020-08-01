@@ -1,0 +1,11 @@
+name = 'Helodeck'
+version = '1.0'
+author = 'Rugg'
+description = ('A recreation of Helodeck from Blacklight:Retribution')
+extensions = {
+	"spawns" : [
+		((274, 208, 58), (291, 220, 58)),
+		((250, 165, 58), (256, 182, 58)),
+		((232, 160, 58), (248, 162, 58)),
+	]
+}

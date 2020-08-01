@@ -1,0 +1,12 @@
+name = '1aaBridge'
+version = '1.0'
+author = 'Rugg'
+description = 'First'
+extensions = {
+    'team1Spawn' : ((90,198), (121,211)),
+    'team2Spawn' : ((363,196), (395,215)),
+    'team1Intel' : ((122,211), (122,211)),
+    'team2Intel' : ((366,209), (366,209)),
+    'team1Base' :  ((90,198), (121,211)),
+    'team2Base' :  ((363,196), (395,215))
+}
