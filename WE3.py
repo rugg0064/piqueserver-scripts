@@ -9,53 +9,6 @@ maxUndoRedo = 20
 availableModes = ("cuboid", "ellipsoid", "cyl")
 availableBrushes = ("wand", "sphere", "cube")
 
-#All functions
-'''
-colorTupleToInt -- Replaced with pyspades.common
-colorIntToTuple -- Replaced with pyspades.common
-
-
---Utility functions--
-colorToHexString
-
---Everyday Things for general use --
-warp -- Implemented
-warph -- Implemented
-colorh -- Implemented
-displayPos  -- Implemented
-displayHPos -- Implemented
-
---Else--
-
-setMode
-connectionAttrFloatChanger
-connectionAttrIntChanger
-setSmoothStr
-setBrushRez
-setBrushRez
-setColor
-printSel
-pos1
-pos2
-hpos1
-hpos2
-desel
-selChunk
-activeteWand
-expand
-shrink
-shift
-createCyl
-stack
-get{}position cuboid,ellipsoid,cyl
-getNeighbors
-getNeighborColors
-set
-sort_positions
-copy
-paste
-'''
-
 class Color():
     def __init__(self, tuple=None, hex=None):
         if(hex is not None):
