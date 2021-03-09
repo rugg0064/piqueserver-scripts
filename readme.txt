@@ -79,3 +79,14 @@ Config allows setting the time invulnerable:
 
 [spawnProtection]
 protectionTime = 5
+
+
+Tag.py
+Gamemode for Tag
+Recommend a max player count of 17, higher numbers may break at the moment.
+
+[tag]
+safeTime = 5
+shotsTag = false
+pointsEveryXSeconds = 5
+taggerTime = 30
