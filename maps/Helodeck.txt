@@ -2,6 +2,7 @@ name = 'Helodeck'
 version = '1.0'
 author = 'Rugg'
 description = ('A recreation of Helodeck from Blacklight:Retribution')
+fog = (198, 232, 245)
 extensions = {
 	"spawns" : [
 		((274, 208, 58), (291, 220, 58)),

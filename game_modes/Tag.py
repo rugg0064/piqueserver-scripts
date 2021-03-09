@@ -7,17 +7,12 @@ from time import time
 from piqueserver.commands import command, player_only
 from twisted.internet import reactor
 from twisted.internet.error import AlreadyCalled
-from pyspades.contained import KillAction, CreatePlayer, PlayerLeft, StateData, CTFState
+from pyspades.contained import KillAction, CreatePlayer, PlayerLeft, StateData, CTFState, FogColor
 sectionConfig = config.section('tag')
 safeTimeConfig = sectionConfig.option('safeTime', default = 5)
 shotsTagConfig = sectionConfig.option('shotsTag', default = False)
 pointsEveryXSecondsConfig = sectionConfig.option('pointsEveryXSeconds', default = 5)
 taggerTimeConfig = sectionConfig.option('taggerTime', default = 30)
-
-#safeTime = 1
-#shotsTag = True
-#pointsEveryXSeconds = 1
-#taggerTime = 30
 
 @command('tag')
 def tagTutorial(connection):
@@ -154,6 +149,7 @@ def apply_script(protocol, connection, config):
 
             sky = (135, 206, 235)
             red = (102,0,0)
+            print(self.protocol.team_2.color)
             distance = 9999
             color = sky
             if(self.team.id==0):
@@ -170,62 +166,10 @@ def apply_script(protocol, connection, config):
                     color = (randomAdd + sky[0]*pc + red[0]*(1-pc),
                             randomAdd + sky[1]*pc + red[1]*(1-pc),
                             randomAdd + sky[2]*pc + red[2]*(1-pc))
-            sd = StateData()
-            
-            sd.player_id = self.player_id
-            sd.fog_color = color
-            sd.team1_color = self.protocol.team_1.color
-            sd.team2_color = self.protocol.team_2.color
-            sd.team1_name = self.protocol.team_1.name
-            sd.team2_name = self.protocol.team_2.name
-                    
-            game_mode = self.protocol.game_mode
 
-            blue = self.protocol.blue_team
-            green = self.protocol.green_team
-
-            if game_mode == CTF_MODE:
-                blue_base = blue.base
-                blue_flag = blue.flag
-                green_base = green.base
-                green_flag = green.flag
-                ctf_data = CTFState()
-                ctf_data.cap_limit = self.protocol.max_score
-                ctf_data.team1_score = blue.score
-                ctf_data.team2_score = green.score
-
-                ctf_data.team1_base_x = blue_base.x
-                ctf_data.team1_base_y = blue_base.y
-                ctf_data.team1_base_z = blue_base.z
-
-                ctf_data.team2_base_x = green_base.x
-                ctf_data.team2_base_y = green_base.y
-                ctf_data.team2_base_z = green_base.z
-
-                if green_flag.player is None:
-                    ctf_data.team1_has_intel = 0
-                    ctf_data.team2_flag_x = green_flag.x
-                    ctf_data.team2_flag_y = green_flag.y
-                    ctf_data.team2_flag_z = green_flag.z
-                else:
-                    ctf_data.team1_has_intel = 1
-                    ctf_data.team2_carrier = green_flag.player.player_id
-
-                if blue_flag.player is None:
-                    ctf_data.team2_has_intel = 0
-                    ctf_data.team1_flag_x = blue_flag.x
-                    ctf_data.team1_flag_y = blue_flag.y
-                    ctf_data.team1_flag_z = blue_flag.z
-                else:
-                    ctf_data.team2_has_intel = 1
-                    ctf_data.team1_carrier = blue_flag.player.player_id
-
-                sd.state = ctf_data
-
-            elif game_mode == TC_MODE:
-                sd.state = tc_data
-            
-            self.send_contained(sd)
+            fd = FogColor()
+            fd.color = color
+            self.send_contained(fd)
 
             connection.on_position_update(self)
             
