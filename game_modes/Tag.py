@@ -1,21 +1,34 @@
 from pyspades.constants import CTF_MODE
-from random import choice
+from piqueserver.config import config
+from random import choice, random
 from pyspades.contained import ChangeTeam
 from pyspades.constants import MELEE_KILL
 from time import time
-
+from piqueserver.commands import command, player_only
 from twisted.internet import reactor
 from twisted.internet.error import AlreadyCalled
+from pyspades.contained import KillAction, CreatePlayer, PlayerLeft, StateData, CTFState
+sectionConfig = config.section('tag')
+safeTimeConfig = sectionConfig.option('safeTime', default = 5)
+shotsTagConfig = sectionConfig.option('shotsTag', default = False)
+pointsEveryXSecondsConfig = sectionConfig.option('pointsEveryXSeconds', default = 5)
+taggerTimeConfig = sectionConfig.option('taggerTime', default = 30)
 
-safeTime = 5
-shotsTag = True
-pointsEveryXSeconds = 5
-taggerTime = 60
+#safeTime = 1
+#shotsTag = True
+#pointsEveryXSeconds = 1
+#taggerTime = 30
+
+@command('tag')
+def tagTutorial(connection):
+    connection.send_chat("The longer the runner survives, the more points they gain")
+    connection.send_chat("The tagger, who is \"it\" must try to hit a runner")
+    connection.send_chat("To play tag, runners must run away and hide from the tagger")
+
 
 def apply_script(protocol, connection, config):
     class tagProtocol(protocol):
         game_mode = CTF_MODE
-        
         newRunnerCallID = None
         spawnPoints = []
         def getSpawns(self):
@@ -46,14 +59,14 @@ def apply_script(protocol, connection, config):
                 pass
             except Exception as ex:
                 print("Unknown Error: " + type(ex))
-            self.newRunnerCallID = reactor.callLater(taggerTime, self.taggerOutOfTime)
+            self.newRunnerCallID = reactor.callLater(taggerTimeConfig.get(), self.taggerOutOfTime)
             
         def taggerOutOfTime(self):
             if(len(self.players)<=1):
                 self.newTaggerTime()
             else:
                 self.broadcast_chat("Tagger has run out of time!")
-                self.givePlayersPointsForTime(exclude = findTaggers)
+                self.givePlayersPointsForTime(exclude = self.findTaggers())
                 self.selectRandomTagger(exclude = self.findTaggers())
             return
         
@@ -61,8 +74,8 @@ def apply_script(protocol, connection, config):
             for i in self.players:
                 player = self.players[i]
                 if player not in exclude:
-                    print( int((time() - player.spawnTime) // pointsEveryXSeconds))
-                    player.givePoints( int((time() - player.spawnTime) // pointsEveryXSeconds))
+                    #print( int((time() - player.spawnTime) // pointsEveryXSecondsConfig.get()))
+                    player.givePoints( int((time() - player.spawnTime) // pointsEveryXSecondsConfig.get()))
                     player.spawnTime = time()
                     
         def selectRandomTagger(self, exclude = []):
@@ -79,16 +92,19 @@ def apply_script(protocol, connection, config):
                 
     class tagConnection(connection):
         spawnTime = 0
+        positiveColorOffset = False
+        spawnAtPos = None
+        
+        
         
         def givePoints(self, amount):
-            from pyspades.contained import KillAction, CreatePlayer, PlayerLeft
             cp = CreatePlayer()
             cp.x = 0
             cp.y = 0
             cp.z = 0
             cp.weapon = 0
             cp.player_id = 31
-            cp.name = "TAGGED"
+            cp.name = "TAG POINTS"
             cp.team = self.team.other.id
             self.protocol.broadcast_contained(cp, save=True)
             
@@ -106,7 +122,7 @@ def apply_script(protocol, connection, config):
             self.protocol.broadcast_contained(pl, save=True)
         
         def on_disconnect(self):
-            if(self.team.id == 1):
+            if(sum(1 for _ in self.protocol.team_2.get_players()) == 0):
                 self.protocol.broadcast_chat("Tagger has disconnected, points awarded, congrats!")
                 self.protocol.givePlayersPointsForTime(exclude = [self])
                 self.protocol.selectRandomTagger(exclude = [self])
@@ -115,37 +131,120 @@ def apply_script(protocol, connection, config):
         def on_hit(self, hit_amount, hit_player, kill_type, grenade):
             #self.givePoints(10)
             
-            if(self.team.id==1 and hit_player.team.id==0 and (kill_type==MELEE_KILL or shotsTag)):
-                if(hit_player.spawnTime + safeTime < time()):
+            #if tagger hits a runner and (melee or shots count)
+            if(self.team.id==1 and hit_player.team.id==0 and (kill_type==MELEE_KILL or shotsTagConfig.get())):
+                if(hit_player.spawnTime + safeTimeConfig.get() < time()):
                     self.set_team(self.protocol.team_1)
                     hit_player.set_team(self.protocol.team_2)
-                    
+                    hit_player.spawnAtPos = hit_player.get_location()
                     protocol.broadcast_chat(self.protocol, "{} has been tagged, they are now it!".format(hit_player.name))
-                    self.protocol.givePlayersPointsForTime(exclude = [self, hit_player])
+                    self.protocol.givePlayersPointsForTime(exclude = [self])
                 else:
                     self.send_chat("You can't tag them yet, theyre still safe!")
             elif(self.team.id == 0):
                 self.send_chat("You are a runner, you cannot attack!")
-            elif(kill_type!=MELEE_KILL and not shotsTag):
+            elif(kill_type!=MELEE_KILL and not shotsTagConfig.get()):
                 self.send_chat("You must use melee!")
             return False
         
         on_block_build_attempt = on_line_build_attempt = on_block_destroy = lambda *args : False
         
         def on_position_update(self):
-            #print(self.protocol.newRunnerCallID)
+            taggers = [_ for _ in self.protocol.team_2.get_players()]
+
+            sky = (135, 206, 235)
+            red = (102,0,0)
+            distance = 9999
+            color = sky
+            if(self.team.id==0):
+                for tagger in taggers:
+                    tpos = tagger.get_location()
+                    ppos = self.get_location()
+                    distance = min(distance, ( (tpos[0]-ppos[0])**2 + (tpos[1]-ppos[1])**2 + (tpos[2]-ppos[2])**2)**(1/2))
+                if(distance < 20):
+                    pc = max(0,(distance-5)/15) #percent
+                    pc = pc**2
+                    randomAdd = 5 * (random() - 0 if self.positiveColorOffset else 1)
+                    self.positiveColorOffset = not self.positiveColorOffset
+                    
+                    color = (randomAdd + sky[0]*pc + red[0]*(1-pc),
+                            randomAdd + sky[1]*pc + red[1]*(1-pc),
+                            randomAdd + sky[2]*pc + red[2]*(1-pc))
+            sd = StateData()
+            
+            sd.player_id = self.player_id
+            sd.fog_color = color
+            sd.team1_color = self.protocol.team_1.color
+            sd.team2_color = self.protocol.team_2.color
+            sd.team1_name = self.protocol.team_1.name
+            sd.team2_name = self.protocol.team_2.name
+                    
+            game_mode = self.protocol.game_mode
+
+            blue = self.protocol.blue_team
+            green = self.protocol.green_team
+
+            if game_mode == CTF_MODE:
+                blue_base = blue.base
+                blue_flag = blue.flag
+                green_base = green.base
+                green_flag = green.flag
+                ctf_data = CTFState()
+                ctf_data.cap_limit = self.protocol.max_score
+                ctf_data.team1_score = blue.score
+                ctf_data.team2_score = green.score
+
+                ctf_data.team1_base_x = blue_base.x
+                ctf_data.team1_base_y = blue_base.y
+                ctf_data.team1_base_z = blue_base.z
+
+                ctf_data.team2_base_x = green_base.x
+                ctf_data.team2_base_y = green_base.y
+                ctf_data.team2_base_z = green_base.z
+
+                if green_flag.player is None:
+                    ctf_data.team1_has_intel = 0
+                    ctf_data.team2_flag_x = green_flag.x
+                    ctf_data.team2_flag_y = green_flag.y
+                    ctf_data.team2_flag_z = green_flag.z
+                else:
+                    ctf_data.team1_has_intel = 1
+                    ctf_data.team2_carrier = green_flag.player.player_id
+
+                if blue_flag.player is None:
+                    ctf_data.team2_has_intel = 0
+                    ctf_data.team1_flag_x = blue_flag.x
+                    ctf_data.team1_flag_y = blue_flag.y
+                    ctf_data.team1_flag_z = blue_flag.z
+                else:
+                    ctf_data.team2_has_intel = 1
+                    ctf_data.team1_carrier = blue_flag.player.player_id
+
+                sd.state = ctf_data
+
+            elif game_mode == TC_MODE:
+                sd.state = tc_data
+            
+            self.send_contained(sd)
+
             connection.on_position_update(self)
-        
+            
         def get_spawn_location(self):
-            pos = choice(self.protocol.getSpawns())
+            if(self.spawnAtPos is not None):
+                pos = self.spawnAtPos
+                self.spawnAtPos = None
+            else:
+                pos = choice(self.protocol.getSpawns())
             return pos
         
         def on_spawn(self, position):
             taggers = sum(1 for _ in self.protocol.team_2.get_players())
             if(taggers > 1 and self.team.id == 1):
                 self.set_team(self.protocol.team_1)
+                self.spawnAtPos = self.spawnAtPos
             if(taggers == 0):
                 self.set_team(self.protocol.team_2)
+                self.spawnAtPos = self.spawnAtPos
                 return None
             
             if(self.team.id==1):
@@ -163,5 +262,4 @@ def apply_script(protocol, connection, config):
             '''
             self.spawnTime = time()
             connection.on_spawn(self, position)
-            #connection.set_location(self,choice(self.spawnpoints))
     return tagProtocol, tagConnection
