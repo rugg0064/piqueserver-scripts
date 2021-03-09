@@ -5,10 +5,12 @@ Large powerful artillery, highly configurable
 Requires separate script to give as a reward for a killstreak etc
 Cooldowns can be configured so that people have a personal and team cooldown, and those cooldowns are different for nukes that 'fail' and nukes that 'succeed', ie, get kills.
 Sample config, can be pasted at the bottom of config.toml and edited:
+
 [nuke]
 explosionRadius = 10
 maximumExplosionRadius = 50
-fallOff = 0.0025
+flatness = 0.0083
+shiftness = 131
 propogationTime = 1.2
 upHeight = 8
 downHeight = 2
@@ -17,13 +19,14 @@ teamSuccessCooldown = 30
 playerSuccessCooldown = 30
 teamCooldown = 5
 playerCooldown = 5
-launchTime = 2
+friendlyFire = true
+launchTime = 15
 warningGlobalInitial = true
 warningOnInterval = true
+interval = 0.25
 warningOnCountdown = false
 warningCountdownStart = 2
-interval = 0.25
-friendlyFire = true
+
 
 
 hashtag.py

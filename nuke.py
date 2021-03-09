@@ -16,13 +16,23 @@ from pyspades.constants import GRENADE_DESTROY
 nukeErrorMessage = "Invalid Input, provide coordinate (eg: C3) and region (eg: NE for northeast)"
 
 sectionConfig = config.section('nuke')
+
 radiusConfig = sectionConfig.option('explosionRadius', default = 10)
 maximumRadiusConfig = sectionConfig.option('maximumExplosionRadius', default = 50)
 flatnessConfig = sectionConfig.option('flatness', default = 0.0083)
 shiftnessConfig = sectionConfig.option('shiftness', default = 131)
-#f\left(x\right)\ =\ \left(\left(M-N\right)\right)/(1+1e^{-k\left(x-\left(S\right)\right)})
-#N = minimum; M = maximum; S = shiftness (slider 0-*200*); F = flatness (slider 0-0.25)
-#X axis = grenade, Y axis = distance from radius
+
+#You can paste this into https://www.desmos.com/calculator to see a graph
+#
+# f\left(x\right)\ =\ \left(\left(M-N\right)\right)/(1+1e^{-k\left(x-\left(S\right)\right)})
+#N = minimum (explosionRadius)
+#M = maximum (maximumExplosionRadius)
+#S = shiftness (shiftness)
+#K = flatness (flatness)
+#To modify start with default values and go from there
+#X axis = grenade, Y axis = distance from explosionRadius
+#Your domains should be X:(0,grenadeAmount) Y:(0,maximum-minimum)
+
 propogationTimeConfig = sectionConfig.option('propogationTime', default = 2.5)
 upHeightConfig = sectionConfig.option('upHeight', default = 8)
 downHeightConfig = sectionConfig.option('downHeight', default = 2)
