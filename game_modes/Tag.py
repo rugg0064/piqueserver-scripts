@@ -8,11 +8,15 @@ from piqueserver.commands import command, player_only
 from twisted.internet import reactor
 from twisted.internet.error import AlreadyCalled
 from pyspades.contained import KillAction, CreatePlayer, PlayerLeft, StateData, CTFState, FogColor
+from math import floor
 sectionConfig = config.section('tag')
 safeTimeConfig = sectionConfig.option('safeTime', default = 5)
 shotsTagConfig = sectionConfig.option('shotsTag', default = False)
 pointsEveryXSecondsConfig = sectionConfig.option('pointsEveryXSeconds', default = 5)
 taggerTimeConfig = sectionConfig.option('taggerTime', default = 30)
+disqualificationBonusConfig = sectionConfig.option('disqualificationBonus', default = 10)
+taggerComboCountConfig = sectionConfig.option('taggerComboCount', default = 5)
+taggerComboTimeConfig = sectionConfig.option('taggerComboTime', default = 1)
 
 @command('tag')
 def tagTutorial(connection):
@@ -20,6 +24,9 @@ def tagTutorial(connection):
     connection.send_chat("The tagger, who is \"it\" must try to hit a runner")
     connection.send_chat("To play tag, runners must run away and hide from the tagger")
 
+@command('kill')
+def killCommand(connection):
+    connection.send_chat("You cannot use the kill command")
 
 def apply_script(protocol, connection, config):
     class tagProtocol(protocol):
@@ -89,8 +96,9 @@ def apply_script(protocol, connection, config):
         spawnTime = 0
         positiveColorOffset = False
         spawnAtPos = None
-        
-        
+
+        lastHitTaggerTime = 0
+        taggerHitCombo = taggerComboCountConfig.get()
         
         def givePoints(self, amount):
             cp = CreatePlayer()
@@ -102,7 +110,6 @@ def apply_script(protocol, connection, config):
             cp.name = "TAG POINTS"
             cp.team = self.team.other.id
             self.protocol.broadcast_contained(cp, save=True)
-            
             
             ka = KillAction()
             ka.player_id = 31
@@ -124,22 +131,45 @@ def apply_script(protocol, connection, config):
             connection.on_disconnect(self)
             
         def on_hit(self, hit_amount, hit_player, kill_type, grenade):
-            #self.givePoints(10)
-            
-            #if tagger hits a runner and (melee or shots count)
-            if(self.team.id==1 and hit_player.team.id==0 and (kill_type==MELEE_KILL or shotsTagConfig.get())):
-                if(hit_player.spawnTime + safeTimeConfig.get() < time()):
-                    self.set_team(self.protocol.team_1)
-                    hit_player.set_team(self.protocol.team_2)
-                    hit_player.spawnAtPos = hit_player.get_location()
-                    protocol.broadcast_chat(self.protocol, "{} has been tagged, they are now it!".format(hit_player.name))
-                    self.protocol.givePlayersPointsForTime(exclude = [self])
+
+            if(self.team.id == 1): #Tagger is who hit someone
+                if(hit_player.team.id == 0): # Tagger hit a Runner
+                    if(kill_type == MELEE_KILL or shotsTagConfig.get()): #Allowed hit
+                        if(hit_player.spawnTime + safeTimeConfig.get() < time()): #not spawn protected
+                            self.set_team(self.protocol.team_1)
+                            hit_player.set_team(self.protocol.team_2)
+                            hit_player.spawnAtPos = hit_player.get_location()
+                            protocol.broadcast_chat(self.protocol, "{} has been tagged, they are now it!".format(hit_player.name))
+                            self.protocol.givePlayersPointsForTime(exclude = [self])
+                        else: #runner currently spawn protected
+                            self.send_chat("You can't tag them yet, theyre still safe!")
+                    else: #not allowed hit type
+                        self.send_chat("You must use a spade to tag!")
+            elif(self.team.id == 0): #Runner is who hit someone
+                if(kill_type == MELEE_KILL):
+                    if(hit_player.team.id == 1): # Runner hit a Tagger
+                        if(hit_player.spawnTime + safeTimeConfig.get() < time()): #not spawn protected
+                            if(self.lastHitTaggerTime + taggerComboTimeConfig.get() < time()): # Hit outside of combo time
+                                self.taggerHitCombo = taggerComboCountConfig.get() - 1
+                            else: # Hit inside combo time
+                                self.taggerHitCombo = self.taggerHitCombo - 1
+                            self.lastHitTaggerTime = time()
+                            
+                            if(self.taggerHitCombo <= 0):
+                                protocol.broadcast_chat(self.protocol, "{} has disqualified {}, new tagger selected!".format(self.name, hit_player.name))
+                                pointsToGive = disqualificationBonusConfig.get()
+                                self.send_chat("You have been given {} points for disqualifying a runner!".format(pointsToGive))
+                                self.givePoints(pointsToGive)
+                                self.protocol.givePlayersPointsForTime(exclude = [hit_player])
+                                self.protocol.selectRandomTagger(exclude = [self, hit_player])
+                            else:
+                                self.send_chat("If you hit the tagger {} more times he will be disqualified!".format(self.taggerHitCombo))
+                        else:
+                            self.send_chat("The runner is still spawn protected!")
+                    else:
+                        self.send_chat("You are a runner, you can only hit the tagger!")
                 else:
-                    self.send_chat("You can't tag them yet, theyre still safe!")
-            elif(self.team.id == 0):
-                self.send_chat("You are a runner, you cannot attack!")
-            elif(kill_type!=MELEE_KILL and not shotsTagConfig.get()):
-                self.send_chat("You must use melee!")
+                    self.send_chat("Runners can only use a spade!")
             return False
         
         on_block_build_attempt = on_line_build_attempt = on_block_destroy = lambda *args : False
@@ -147,28 +177,25 @@ def apply_script(protocol, connection, config):
         def on_position_update(self):
             taggers = [_ for _ in self.protocol.team_2.get_players()]
 
-            sky = (135, 206, 235)
-            red = (102,0,0)
-            print(self.protocol.team_2.color)
+            sky = (getattr(self.protocol.map_info.info, 'fog', self.protocol.default_fog))
+            red = self.protocol.team_2.color
             distance = 9999
             color = sky
             if(self.team.id==0):
                 for tagger in taggers:
                     tpos = tagger.get_location()
                     ppos = self.get_location()
-                    distance = min(distance, ( (tpos[0]-ppos[0])**2 + (tpos[1]-ppos[1])**2 + (tpos[2]-ppos[2])**2)**(1/2))
+                    distance = min(distance, ( (tpos[0]-ppos[0])**2 + (tpos[1]-ppos[1])**2 + (tpos[2]-ppos[2])**2 )**(1/2))
                 if(distance < 20):
-                    pc = max(0,(distance-5)/15) #percent
-                    pc = pc**2
-                    randomAdd = 5 * (random() - 0 if self.positiveColorOffset else 1)
+                    pc = min(1, max(0,(distance-5)/15)) #percent
                     self.positiveColorOffset = not self.positiveColorOffset
                     
-                    color = (randomAdd + sky[0]*pc + red[0]*(1-pc),
-                            randomAdd + sky[1]*pc + red[1]*(1-pc),
-                            randomAdd + sky[2]*pc + red[2]*(1-pc))
+                    color = (floor(sky[0]*(pc) + red[0]*(1-pc)),
+                             floor(sky[1]*(pc) + red[1]*(1-pc)),
+                             floor(sky[2]*(pc) + red[2]*(1-pc)))
 
             fd = FogColor()
-            fd.color = color
+            fd.color = (color[0] << 16) + (color[1] << 8) + (color[2] << 0)
             self.send_contained(fd)
 
             connection.on_position_update(self)
