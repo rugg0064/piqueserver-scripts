@@ -33,6 +33,7 @@ def apply_script(protocol, connection, config):
         game_mode = CTF_MODE
         newRunnerCallID = None
         spawnPoints = []
+        spawnsCache = None
         def getSpawns(self):
             if(len(self.spawnPoints)==0):
                 if "spawns" in self.map_info.extensions:
@@ -124,21 +125,20 @@ def apply_script(protocol, connection, config):
             self.protocol.broadcast_contained(pl, save=True)
         
         def on_disconnect(self):
-            if(sum(1 for _ in self.protocol.team_2.get_players()) == 0):
+            if(self.team.id == 1 and sum(1 for _ in self.protocol.team_2.get_players()) <= 1):
                 self.protocol.broadcast_chat("Tagger has disconnected, points awarded, congrats!")
                 self.protocol.givePlayersPointsForTime(exclude = [self])
                 self.protocol.selectRandomTagger(exclude = [self])
             connection.on_disconnect(self)
             
         def on_hit(self, hit_amount, hit_player, kill_type, grenade):
-
             if(self.team.id == 1): #Tagger is who hit someone
                 if(hit_player.team.id == 0): # Tagger hit a Runner
                     if(kill_type == MELEE_KILL or shotsTagConfig.get()): #Allowed hit
                         if(hit_player.spawnTime + safeTimeConfig.get() < time()): #not spawn protected
                             self.set_team(self.protocol.team_1)
-                            hit_player.set_team(self.protocol.team_2)
                             hit_player.spawnAtPos = hit_player.get_location()
+                            hit_player.set_team(self.protocol.team_2)
                             protocol.broadcast_chat(self.protocol, "{} has been tagged, they are now it!".format(hit_player.name))
                             self.protocol.givePlayersPointsForTime(exclude = [self])
                         else: #runner currently spawn protected
@@ -203,34 +203,43 @@ def apply_script(protocol, connection, config):
         def get_spawn_location(self):
             if(self.spawnAtPos is not None):
                 pos = self.spawnAtPos
+                pos = (floor(pos[0]) - 0.5, floor(pos[1]) - 0.5, floor(pos[2]) + 2.0)
                 self.spawnAtPos = None
             else:
                 pos = choice(self.protocol.getSpawns())
+                '''
+                totalPosDistanceMax = -999999999
+                for point in self.protocol.getSpawns():
+                    pointMinDistance = 99999999
+                    for ply in self.protocol.players.values():
+                        if ply.world_object is not None:
+                            print("Asd")
+                            pos2 = ply.get_location()
+                            distance = ( (pos2[0]-point[0])**2 + (pos2[1]-point[1])**2 + (pos2[2]-point[2])**2 )**(1/2)
+                            if(distance < pointMinDistance):
+                                pointMinDistance = distance
+                    if(pointMinDistance > totalPosDistanceMax):
+                        totalPosDistanceMax = pointMinDistance
+                        pos = point
+                '''
             return pos
-        
+
         def on_spawn(self, position):
+
             taggers = sum(1 for _ in self.protocol.team_2.get_players())
             if(taggers > 1 and self.team.id == 1):
                 self.set_team(self.protocol.team_1)
-                self.spawnAtPos = self.spawnAtPos
             if(taggers == 0):
                 self.set_team(self.protocol.team_2)
-                self.spawnAtPos = self.spawnAtPos
                 return None
             
             if(self.team.id==1):
                 self.protocol.newTaggerTime()
-            '''
-            print(connection.on_spawn(self, position))
-            if self is not None:
-                if "spawns" in self.protocol.map_info.extensions:
-                    spawns = self.protocol.map_info.extensions['spawns']
-                    for i in spawns:
-                        for x in range(i[0][0],i[1][0]+1):
-                            for y in range(i[0][1], i[1][1]+1):
-                                for z in range(i[0][2], i[1][2]+1):
-                                    self.spawnpoints.append((x,y,z))
-            '''
+
             self.spawnTime = time()
+
             connection.on_spawn(self, position)
+
+            self.set_location(position)
+            
     return tagProtocol, tagConnection
